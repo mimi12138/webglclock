@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        body{text-align: center;}
+    </style>
+</head>
+<body>
+<canvas id="clock" width="500" height="500"></canvas>
+
+<script src="lib.js"></script>
+<script>
+    window.onload= function () {
+        var cxt = clock.getContext('webgl');
+
+        var vertexShaderSource = "" +
+                "attribute vec4 pos;" +
+                "uniform mat4 xf;" +
+                "void main(){" +
+                "   gl_Position = xf * pos;" +
+                " gl_PointSize=20.0;"+
+                "}" +
+                "" +
+                "";
+
+        var fragmentShaderSource = "" +
+                "void main(){" +
+                "   gl_FragColor = vec4(.0,.2,1.0,1.0);" +
+                "}" +
+                "";
+
+        var program = initShader(cxt, vertexShaderSource, fragmentShaderSource);
+
+        var xfLocation = cxt.getUniformLocation(program,'xf');
+        var posLocation = cxt.getAttribLocation(program,'pos');
+        var t,angle1,angle2,angle3,cosB,sinB;
+        angle1= 360;
+        angle2=360;
+        angle3=360;
+
+        //开始执行
+        circle(cxt,posLocation);
+        secondRun();
+        minuteRun();
+        hourRun();
+
+        setInterval(function () {
+            cxt.clearColor(1.0,1.0,1.0,1.0);
+            cxt.clear(cxt.COLOR_BUFFER_BIT);
+           circle(cxt,posLocation);
+            secondRun();
+            minuteRun();
+            hourRun();
+        },1000);
+
+
+        function initpointer(cxt,posLocation){
+            var data = new Float32Array([
+                0.0, 0.0,
+                0.0,.8,//秒针
+                0.0,0.0,
+                0.0,.6,//分针
+                0.0,0.0,
+                0.0,.4,//时针
+                .5, -.5
+            ]);
+            var buffer = cxt.createBuffer();
+            cxt.bindBuffer(cxt.ARRAY_BUFFER,buffer);
+            cxt.bufferData(cxt.ARRAY_BUFFER,data,cxt.STATIC_DRAW);
+            cxt.vertexAttribPointer(posLocation,2,cxt.FLOAT,false,0,0);
+            cxt.enableVertexAttribArray(posLocation);
+
+        }
+
+        function secondRun(){
+            initpointer(cxt,posLocation);
+            t = Math.PI * angle1/180;
+            sinB = Math.sin(t);
+            cosB = Math.cos(t);
+            var xf = new Float32Array([
+                cosB, sinB,0.0,0.0,
+                -sinB , cosB , 0.0,.0,
+                0.0,.0,1.0,.0,
+                0.0,.0,.0,1.0
+            ]);
+            cxt.uniformMatrix4fv(xfLocation,false,xf);
+
+            cxt.drawArrays(cxt.LINES,0,2);
+            cxt.drawArrays(cxt.POINTS,0,1);
+            angle1-=6;
+
+        }
+        function minuteRun(){
+            initpointer(cxt,posLocation);
+            t = Math.PI * angle2/180;
+            sinB = Math.sin(t);
+            cosB = Math.cos(t);
+            var xf = new Float32Array([
+                cosB, sinB,0.0,0.0,
+                -sinB , cosB , 0.0,.0,
+                0.0,.0,1.0,.0,
+                0.0,.0,.0,1.0
+            ]);
+            cxt.uniformMatrix4fv(xfLocation,false,xf);
+            cxt.drawArrays(cxt.LINES,2,2);
+            angle2-=1/10;
+        }
+        function hourRun() {
+            initpointer(cxt,posLocation);
+            t = Math.PI * angle3 / 180;
+            sinB = Math.sin(t);
+            cosB = Math.cos(t);
+            var xf = new Float32Array([
+                cosB, sinB, 0.0, 0.0,
+                -sinB, cosB, 0.0, .0,
+                0.0, .0, 1.0, .0,
+                0.0, .0, .0, 1.0
+            ]);
+            cxt.uniformMatrix4fv(xfLocation, false, xf);
+
+            cxt.drawArrays(cxt.LINES, 4, 2);
+
+            angle3 -= 1 / 120;
+        }
+
+
+        function circle(cxt,posLocation){
+            var n = 64;  var t,cosB,sinB;
+            var vertices = new Float32Array(n*2);
+            var angle = 0; // 开始的弧度
+            var r = .9; // 圆的半径
+            // θ值
+            var stepAngle = 360/n * (Math.PI/180);
+            for(var i=0; i<n*2; i+=2){
+                // 计算顶点x坐标
+                vertices[i] = r * Math.cos(angle);
+                // 计算顶点y坐标
+                vertices[i+1] = r * Math.sin(angle);
+                angle += stepAngle;
+            }
+            // var posLocation = cxt.getAttribLocation(program,'pos');
+            var circlebuffer = cxt.createBuffer();
+            cxt.bindBuffer(cxt.ARRAY_BUFFER,circlebuffer);
+            cxt.bufferData(cxt.ARRAY_BUFFER,vertices,cxt.STATIC_DRAW);
+
+            cxt.vertexAttribPointer(posLocation,2,cxt.FLOAT,false,0,0);
+            cxt.enableVertexAttribArray(posLocation);//激活
+
+            t = Math.PI * 2;
+            sinB = Math.sin(t);
+            cosB = Math.cos(t);
+            var xf = new Float32Array([
+                cosB, sinB,0.0,0.0,
+                -sinB , cosB , 0.0,.0,
+                0.0,.0,1.0,.0,
+                0.0,.0,.0,1.0
+            ]);
+            cxt.uniformMatrix4fv(xfLocation,false,xf);
+
+
+            cxt.clearColor(1.0,1.0,1.0,1.0);
+            cxt.clear(cxt.COLOR_BUFFER_BIT);
+
+            cxt.drawArrays(cxt.LINE_LOOP,0,n);//绘制线段 dramArrays(gl.LINES,start,count)
+
+        }
+        function bresenhamline(x0,y0,x1,y1){
+            var x, y,dx,dy, k,e;
+            dx=x1-x0;dy=y1-y0;k=dy/dx;e=-0.5;x=x0;y=y0;
+            for(var i=0;i<=dx;i++){
+                cxt.drawArrays(cxt.POINTS,0,1);
+                x=x+1;e=e+k;
+                if(e>=0){
+                    y++;
+                    e=e-1;
+                }
+            }
+        }
+    }
+
+</script>
+</body>
+</html>
